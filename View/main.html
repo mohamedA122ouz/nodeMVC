@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>~title</title>
+</head>
+
+<body>
+    <a onclick="run()">extract new images (if exist)</a>
+    ~codeCase#{
+        ?alert('Congratulations')?<script>~code</script>$
+    }#
+    <div class="img"
+        style="position: absolute;left: 50%;top: 50%;transform: translate(-50%, -50%);width: 90%;height: 90%;background-repeat: no-repeat;background-position: center;background-size: contain;background-image: url('~@/img?image=~imageURL');">
+        choosed question by pressing right arrow ➡ or c for last image </div>
+    <div class="number" style="position: fixed;bottom:0;right: 0;margin: 25px;font-size: 2rem;">~takenLength | ~imgLength</div>
+</body>
+
+</html>

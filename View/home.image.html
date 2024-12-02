@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>choose random question</title>
+    <script>
+        let alertTxt = `Controlls:
+            ➡: get new image and save old one if exist to the solved images
+            delete: get the next image without save to solved images
+            c: show the current image it is useful if you are in favorites and wanna get back to randomly choosed image
+            f : shows the favorite images
+            shift + f: saves the current image into favorite
+            shift + d: delete the favorite image from favorites
+            ALT + t : to reset the program
+            shift + ?: shows the image path
+            shift + 1:to show this alert Txt again
+            shift + s:to save into harddesk
+            shift + r:to restore the old data and refresh this migh be bad if you didn't save last session
+            t: to show already taken images
+            THE IMAGES WILL AUTO SAVED TO STORAGE BUT THE RESTORE WON'T BE AUTOMATIC
+            `
+        let controlAlert = localStorage.controlAlert;
+        if (!controlAlert) {
+            alert(alertTxt);
+            localStorage.controlAlert = true;
+        }
+
+
+    </script>
+    <link href="./qicon.png" rel="icon" />
+</head>
+
+<body>
+    <a onclick="run()">extract new images (if exist)</a>
+    <div class="img" src=""
+    style="position: absolute;left: 50%;top: 50%;transform: translate(-50%, -50%);width: 90%;height: 90%;background-repeat: no-repeat;background-position: center;background-size: contain;">choosed question by pressing right arrow ➡ or c for last image </div>
+    <div class="number" style="position: fixed;bottom:0;right: 0;margin: 25px;font-size: 2rem;"></div>
+    <script>
+        
+        let isRestoring = false;
+        function run(){
+            fetch("http://localhost:8080/refresh")
+                .then((res) => {
+                    if (res.status === 200) {
+                        alert("extracted successfully");
+                        window.location.reload();
+                    } else {
+                        alert("extraction when wrong for some reason");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error during fetch:", error.message);
+                });
+        }
+        function restoreData() {
+            return fetch("http://localhost:8080/")
+                .then((res) => {
+                    if (res.status === 200) {
+                        return res.json(); // Returns a Promise
+                    }
+                    throw new Error("Response status is not 200 OK");
+                })
+                .then((data) => {
+                    // Now 'data' contains the parsed JSON
+                    data = JSON.parse(data);
+                    for (let i in data) {
+                        localStorage.setItem(i, data[i]);
+                    }
+                    alert("data restored successfully")
+                })
+                .catch((error) => {
+                    console.error("Error fetching data:", error.message);
+                });
+        }
+        function saveData() {
+            return fetch("http://localhost:8080/", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                    ...localStorage,
+                }),
+            })
+                .then((res) => {
+                    if (res.status === 200) {
+                        alert("Saved successfully");
+                    } else {
+                        alert("Not saved for some reason");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error during fetch:", error.message);
+                });
+        }
+        const images = 0x11;
+        const takenAlready = { length: 0, insert: function (...data) { for (let i of data) { this.length++; this[i] = true; } }, retake: function (qNum) { this.length--; delete this[qNum]; } };
+        const favor = {
+            items: [],
+            pointer: -1, next: function () {
+                if (this.pointer === -1) { getFavoirte(); }
+                if (this.pointer < this.items.length)
+                    return this.items[++this.pointer];
+                else {
+                    alert("nothing Previous");
+                    return this.items[this.items.length - 1]
+                }
+            },
+            previous: function () {
+                if (this.pointer > 0)
+                    return this.items[--this.pointer];
+                else {
+                    alert("nothing Previous");
+                    return this.items[0];
+                }
+            }
+            , loopNavigation: function () {
+                if (this.pointer === -1) { getFavoirte(); }
+                this.pointer = (this.pointer + 1) % this.items.length
+                return this.items[this.pointer];
+            }
+        };
+        getFunction();
+        const itemLength = images.length;
+        function randomQ() {
+            return Promise.resolve().then(() => {
+                let num = parseInt(Math.random() * 538640390 % itemLength);
+                while (num in takenAlready) {
+                    num = parseInt(Math.random() * 538640390 % itemLength);
+                    if (takenAlready.length === itemLength - 1) {
+                        for (let i = 0; i < takenAlready.length; i++) {
+                            if (i in takenAlready) { continue; }
+                            takenAlready.insert(i);
+                            return i;
+                        }
+                    } else if (takenAlready.length === itemLength) {
+                        alert("congrates you finished go to solve a real exam");
+                        return 0;
+                    }
+                }
+                takenAlready.insert(num);
+                return num;
+            }).then(result => { console.log(result); return result; });
+        }
+        let img = document.querySelector(".img");
+        img.alt = img.alt + ` __NOTICE: you solved ${takenAlready.length} question so you have ${images.length - takenAlready.length} question ready to be solved from total ${images.length} question`
+        let retakeQuestionNum = -1;
+        function saveToStorage() {
+            let arr = [];
+            for (let i in takenAlready) {
+                if (!isNaN(i))
+                    arr.push(parseInt(i));
+            }
+            localStorage.setItem("finishedQ", JSON.stringify(arr));
+        }
+        function getFunction() {
+            try {
+                let arr = JSON.parse(localStorage.getItem("finishedQ"));
+                if (arr.length) {
+                    arr.forEach(element => {
+                        takenAlready.insert(element);
+                    });
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        }
+        function* takenAlreadyPointer() {
+            for (let i in takenAlready) {
+                if (i !== "length" && i !== "insert" && i !== "retake") {
+                    yield i;
+                }
+                else {
+                    continue;
+                }
+            }
+        }
+        let alreadySolvedPointer = takenAlreadyPointer();
+        /**
+         * @param {number} favorite
+         */
+        function saveFavorite(favorite) {
+            try {
+                /**
+                * @type {Array}
+                */
+                let current = JSON.parse(localStorage.getItem("favorite"));
+                current.push(favorite);
+                current = new Set(current);
+                localStorage.setItem("favorite", JSON.stringify([...current]));
+            } catch {
+                let current = [favorite];
+                localStorage.setItem("favorite", JSON.stringify(current));
+            }
+            getFavoirte();
+        }
+        function getFavoirte() {
+            try {
+                let current = JSON.parse(localStorage.getItem("favorite"));
+                favor.items = current;
+            } catch {
+                alert("favorite is empty");
+            }
+        }
+        let num;
+        document.addEventListener("keydown", async (e) => {
+            // console.log(e.code);
+            if (e.code === "ArrowRight") {
+                saveToStorage();
+                num = await randomQ();
+                retakeQuestionNum = num;
+                img.innerHTML = ``;
+                img.style.backgroundImage = `url("${images[num]}")`;
+            }
+            else if (e.code === "Delete") {
+                num = await randomQ();
+                takenAlready.retake(retakeQuestionNum);
+                img.innerHTML = ``;
+                img.style.backgroundImage = `url("${images[num]}")`;
+                retakeQuestionNum = num;
+            }
+            else if (e.code === "KeyC") {
+                if (localStorage.lastImage)
+                    num = localStorage.lastImage;
+                if (!isNaN(num)) {
+                    img.innerHTML = ``;
+                    img.style.backgroundImage = `url("${images[num]}")`
+                    retakeQuestionNum = num;
+                }
+                else {
+                    alert("no current or last image");
+                }
+            }
+            else if (e.shiftKey && e.code === "KeyF") {
+                saveFavorite(num);
+            }
+            else if (e.shiftKey && e.code === "KeyD") {
+                let i = new Set(favor.items);
+                i.delete(favor.items[favor.pointer]);
+                favor.items = [...i];
+                try {
+                    localStorage.setItem("favorite", JSON.stringify([...i]));
+                } catch { }
+            }
+            else if (e.code === "KeyF") {
+                let i = favor.loopNavigation();
+                if (i >= 0){
+                    img.innerHTML = ``;
+                    img.style.backgroundImage = `url("${images[i]}")`
+                }
+                document.querySelector(".number").textContent = `FAV:${favor.pointer + 1}/${favor.items.length} | image#${favor.items[favor.pointer]}`;
+                return;
+            }
+            else if (e.code === "KeyT") {
+                let i = alreadySolvedPointer.next().value;
+                if (i !== undefined) {
+                    img.innerHTML = ``;
+                    img.style.backgroundImage = `url("${images[i]}")`
+                }
+                else {
+                    alreadySolvedPointer = takenAlreadyPointer();
+                    i = alreadySolvedPointer.next().value;
+                    img.innerHTML = ``;
+                    img.style.backgroundImage = `url("${images[i]}")`
+                }
+                document.querySelector(".number").textContent = `solved img index:${i} | imageName: ${images[i]}`;
+                return;
+            }
+            else if (e.code === "KeyT" && e.altKey) {
+                localStorage.clear();
+                location.reload();
+            }
+            else if (e.code === "Slash" && e.shiftKey) {
+                alert("image path is: " + images[num]);
+            } else if (e.code === "KeyS" && e.shiftKey) {
+                saveData();
+            }
+            else if (e.code === "KeyR" && e.shiftKey) {
+                restoreData().then(() => {
+                    isRestoring = true;
+                    location.reload();
+                });
+            }
+            else if (e.code === "Digit1" && e.shiftKey) {
+                alert(alertTxt);
+            }
+            if (!isNaN(num)) {
+                document.querySelector(".number").textContent = `RAND:${takenAlready.length}/${itemLength} | image#${num}`;
+                localStorage.lastImage = num;
+            }
+        });
+        window.addEventListener("beforeunload", async (ev) => {
+            if(!isRestoring){
+                ev.preventDefault();
+                await saveData();
+                window.close();
+            }
+        });
+    </script>
+</body>
+
+</html>
